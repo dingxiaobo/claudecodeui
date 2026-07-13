@@ -29,8 +29,10 @@ const convertMarkdownToPlainText = (markdown: string): string => {
   plainText = plainText.replace(/^#{1,6}\s+/gm, '');
   plainText = plainText.replace(/^[-*+]\s+/gm, '');
   plainText = plainText.replace(/^\d+\.\s+/gm, '');
-  plainText = plainText.replace(/(\*\*|__)(.*?)\1/g, '$2');
-  plainText = plainText.replace(/(\*|_)(.*?)\1/g, '$2');
+  plainText = plainText.replace(/\*\*(.*?)\*\*/g, '$1');
+  plainText = plainText.replace(/(^|\s)__([^_]+)__(?=\s|$|[.,!?;:\])'"\-])/g, '$1$2');
+  plainText = plainText.replace(/\*(.*?)\*/g, '$1');
+  plainText = plainText.replace(/(^|\s)_([^_]+)_(?=\s|$|[.,!?;:\])'"\-])/g, '$1$2');
   plainText = plainText.replace(/~~(.*?)~~/g, '$1');
   plainText = plainText.replace(/<\/?[^>]+(>|$)/g, '');
   plainText = plainText.replace(/\n{3,}/g, '\n\n');
@@ -96,11 +98,11 @@ const MessageCopyControl = ({
     : t('copyMessage.textShort', { defaultValue: 'TXT' });
 
   const copyPayload = useMemo(() => {
-    if (selectedFormat === 'markdown') {
+    if (selectedFormat === 'markdown' || messageType === 'user') {
       return content;
     }
     return convertMarkdownToPlainText(content);
-  }, [content, selectedFormat]);
+  }, [content, selectedFormat, messageType]);
 
   useEffect(() => {
     setSelectedFormat(defaultFormat);

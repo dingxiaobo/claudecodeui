@@ -21,7 +21,7 @@ export default function GitConfigurationStep({
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-inset ring-primary/20">
           <GitBranch className="h-7 w-7 text-primary" />
         </div>
-        <h2 className="font-serif text-xl font-bold tracking-tight text-foreground">Git Configuration</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Git Configuration</h2>
         <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
           Configure your git identity to ensure proper attribution for commits.
         </p>

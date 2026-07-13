@@ -46,7 +46,7 @@ export default function AgentConnectionsStep({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h2 className="font-serif text-xl font-bold tracking-tight text-foreground">Connect Your AI Agents</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Connect Your AI Agents</h2>
         <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
           Login to one or more AI coding assistants. All are optional.
         </p>
