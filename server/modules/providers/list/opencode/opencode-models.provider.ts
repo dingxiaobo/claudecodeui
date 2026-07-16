@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import crossSpawn from 'cross-spawn';
 
+import { sessionsDb } from '@/modules/database/index.js';
 import type { IProviderModels } from '@/shared/interfaces.js';
 import type {
   ProviderChangeActiveModelInput,
@@ -376,7 +377,13 @@ const parseOpenCodeSessionModelValue = (rawModel: unknown): string | null => {
     return null;
   }
 
-  return readOptionalString(record.id)
+  const modelId = readOptionalString(record.id);
+  const providerId = readOptionalString(record.providerID);
+  if (providerId && modelId) {
+    return `${providerId}/${modelId}`;
+  }
+
+  return modelId
     ?? readOptionalString(record.model)
     ?? readOptionalString(record.name)
     ?? readOptionalString(record.value)
@@ -467,6 +474,7 @@ export class OpenCodeProviderModels implements IProviderModels {
     }
 
     try {
+      const providerSessionId = sessionsDb.getSessionById(sessionId)?.provider_session_id ?? sessionId;
       const dbPath = getOpenCodeDatabasePath();
       const db = new Database(dbPath, { readonly: true, fileMustExist: true });
 
@@ -483,7 +491,7 @@ export class OpenCodeProviderModels implements IProviderModels {
           WHERE s.id = ?
           ORDER BY COALESCE(s.time_updated, s.time_created, 0) DESC
           LIMIT 1
-        `).get(sessionId) as {
+        `).get(providerSessionId) as {
           sessionId?: string;
           model?: unknown;
           agent?: string | null;

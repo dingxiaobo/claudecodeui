@@ -7,6 +7,7 @@ import test from 'node:test';
 import Database from 'better-sqlite3';
 
 import { closeConnection, initializeDatabase, sessionsDb } from '@/modules/database/index.js';
+import { OpenCodeProviderModels } from '@/modules/providers/list/opencode/opencode-models.provider.js';
 import { OpenCodeSessionSynchronizer } from '@/modules/providers/list/opencode/opencode-session-synchronizer.provider.js';
 import { OpenCodeSessionsProvider } from '@/modules/providers/list/opencode/opencode-sessions.provider.js';
 import { appendImagesInputTag } from '@/shared/image-attachments.js';
@@ -132,9 +133,9 @@ const createOpenCodeDatabase = async (homeDir: string, workspacePath: string): P
     db.prepare(`
       INSERT INTO session (
         id, project_id, slug, directory, title, version, time_created, time_updated, time_archived,
-        tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write
+        model, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       'open-session-1',
       'project-1',
@@ -145,6 +146,7 @@ const createOpenCodeDatabase = async (homeDir: string, workspacePath: string): P
       1_700_000_000_000,
       1_700_000_004_000,
       null,
+      JSON.stringify({ id: 'gpt-5.6-terra', providerID: 'abm-xueyao', variant: 'default' }),
       10,
       20,
       7,
@@ -291,6 +293,29 @@ test('OpenCode session synchronizer returns the app session id once provider map
         assert.equal(sessionsDb.getAllSessions().length, 1);
         assert.equal(sessionsDb.getSessionById('app-session-1')?.provider_session_id, 'open-session-1');
       });
+    });
+  } finally {
+    restoreHomeDir();
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('OpenCode models provider resolves the active model through the app session mapping', { concurrency: false }, async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'opencode-model-mapped-'));
+  const workspacePath = path.join(tempRoot, 'workspace');
+  await mkdir(workspacePath, { recursive: true });
+  const restoreHomeDir = patchHomeDir(tempRoot);
+
+  try {
+    await createOpenCodeDatabase(tempRoot, workspacePath);
+    await withIsolatedDatabase(async () => {
+      sessionsDb.createAppSession('app-session-model', 'opencode', workspacePath);
+      sessionsDb.assignProviderSessionId('app-session-model', 'open-session-1');
+
+      const models = new OpenCodeProviderModels();
+      const activeModel = await models.getCurrentActiveModel('app-session-model');
+
+      assert.equal(activeModel.model, 'abm-xueyao/gpt-5.6-terra');
     });
   } finally {
     restoreHomeDir();
