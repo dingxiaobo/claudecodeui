@@ -443,7 +443,9 @@ export class OpenCodeProviderModels implements IProviderModels {
   async getSupportedModels(): Promise<ProviderModelsDefinition> {
     try {
       const stdout = await runOpenCodeModelsCommand();
-      const verboseModels = parseOpenCodeVerboseModelsStdout(stdout);
+      const verboseModels = parseOpenCodeVerboseModelsStdout(stdout).filter(
+        (m) => m.providerID !== 'opencode',
+      );
       if (verboseModels.length > 0) {
         return buildOpenCodeDefinitionFromVerboseModels(verboseModels);
       }
