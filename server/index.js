@@ -15,6 +15,7 @@ import mime from 'mime-types';
 import Database from 'better-sqlite3';
 
 import { AppError, WORKSPACES_ROOT, getOpenCodeDatabasePath, validateWorkspacePath } from '@/shared/utils.js';
+import { readOpenCodeTokenUsage } from '@/modules/providers/list/opencode/opencode-token-usage.js';
 import { closeSessionsWatcher, initializeSessionsWatcher } from '@/modules/providers/index.js';
 import { createWebSocketServer } from '@/modules/websocket/index.js';
 
@@ -1113,52 +1114,11 @@ app.get('/api/projects/:projectId/sessions/:sessionId/token-usage', authenticate
 
             const db = new Database(dbPath, { readonly: true, fileMustExist: true });
             try {
-                const columns = db.prepare('PRAGMA table_info(session)').all();
-                const columnNames = new Set(columns.map((column) => column.name));
-                const requiredColumns = ['tokens_input', 'tokens_output', 'tokens_reasoning', 'tokens_cache_read', 'tokens_cache_write'];
-                if (!requiredColumns.every((column) => columnNames.has(column))) {
-                    return res.json({
-                        used: 0,
-                        inputTokens: 0,
-                        outputTokens: 0,
-                        breakdown: { input: 0, output: 0 },
-                        unsupported: true,
-                        message: 'Token usage tracking is not available in this OpenCode database schema'
-                    });
-                }
-
-                const row = db.prepare(`
-                    SELECT
-                        tokens_input AS inputTokens,
-                        tokens_output AS outputTokens,
-                        tokens_reasoning AS reasoningTokens,
-                        tokens_cache_read AS cacheReadTokens,
-                        tokens_cache_write AS cacheWriteTokens
-                    FROM session
-                    WHERE id = ?
-                `).get(providerNativeSessionId);
-
-                if (!row) {
+                const tokenUsage = readOpenCodeTokenUsage(db, providerNativeSessionId);
+                if (!tokenUsage) {
                     return res.status(404).json({ error: 'OpenCode session not found', sessionId: safeSessionId });
                 }
-
-                const inputTokens = Number(row.inputTokens || 0) + Number(row.cacheReadTokens || 0);
-                const outputTokens = Number(row.outputTokens || 0);
-                const totalUsed = Number(row.inputTokens || 0)
-                    + outputTokens
-                    + Number(row.reasoningTokens || 0)
-                    + Number(row.cacheReadTokens || 0)
-                    + Number(row.cacheWriteTokens || 0);
-
-                return res.json({
-                    used: totalUsed,
-                    inputTokens,
-                    outputTokens,
-                    breakdown: {
-                        input: inputTokens,
-                        output: outputTokens
-                    }
-                });
+                return res.json(tokenUsage);
             } finally {
                 db.close();
             }

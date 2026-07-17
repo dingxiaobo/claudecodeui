@@ -184,6 +184,18 @@ const createOpenCodeDatabase = async (homeDir: string, workspacePath: string): P
     db.prepare(
       'INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?, ?, ?, ?, ?)',
     ).run('message-assistant', 'open-session-1', 1_700_000_002_000, 1_700_000_003_000, assistantMessageData);
+    db.prepare(
+      'INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?, ?, ?, ?, ?)',
+    ).run(
+      'message-assistant-pending',
+      'open-session-1',
+      1_700_000_004_500,
+      1_700_000_004_500,
+      JSON.stringify({
+        role: 'assistant',
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      }),
+    );
 
     const insertPart = db.prepare(`
       INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
@@ -425,6 +437,7 @@ test('OpenCode sessions provider reads sqlite history and token usage', { concur
     assert.deepEqual(history.messages[3]?.toolResult, { content: 'ok', isError: false });
     assert.deepEqual(history.tokenUsage, {
       used: 42,
+      contextUsed: 35,
       inputTokens: 13,
       outputTokens: 20,
       breakdown: {

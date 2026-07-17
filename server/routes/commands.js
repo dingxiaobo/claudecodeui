@@ -85,6 +85,99 @@ export const executeModelsCommand = async (args, context) => {
   };
 };
 
+export const executeCostCommand = async (args, context) => {
+  const tokenUsage = context?.tokenUsage || {};
+  const provider = readModelProvider(context?.provider);
+  const catalog = (await providerModelsService.getProviderModels(provider)).models;
+  const model = await resolveCommandModel(provider, catalog, context?.sessionId);
+  const modelContextWindow = Number(
+    catalog.OPTIONS.find((option) => option.value === model)?.contextWindow ?? 0,
+  ) || 0;
+
+  const reportedUsed =
+    Number(
+      tokenUsage.used ?? tokenUsage.totalUsed ?? tokenUsage.total_tokens ?? 0,
+    ) || 0;
+  const reportedTotal =
+    Number(
+      tokenUsage.total ??
+        tokenUsage.contextWindow ??
+        0,
+    ) || 0;
+  const total = reportedTotal || modelContextWindow;
+  const normalizedInputValue =
+    tokenUsage.inputTokens ??
+    tokenUsage.input ??
+    tokenUsage.cumulativeInputTokens ??
+    tokenUsage.breakdown?.input ??
+    tokenUsage.promptTokens;
+  const directInputTokens =
+    Number(
+      normalizedInputValue ??
+        tokenUsage.input_tokens ??
+        0
+    ) || 0;
+  const cacheReadTokens =
+    Number(
+      tokenUsage.cacheReadTokens ??
+        tokenUsage.cache_read_input_tokens ??
+        tokenUsage.cacheReadInputTokens ??
+        0,
+    ) || 0;
+  const cacheCreationTokens =
+    Number(
+      tokenUsage.cacheCreationTokens ??
+        tokenUsage.cache_creation_input_tokens ??
+        tokenUsage.cacheCreationInputTokens ??
+        0,
+    ) || 0;
+  const inputTokens = normalizedInputValue == null
+    ? directInputTokens + cacheReadTokens + cacheCreationTokens
+    : directInputTokens;
+  const outputTokens =
+    Number(
+      tokenUsage.outputTokens ??
+        tokenUsage.output ??
+        tokenUsage.output_tokens ??
+        tokenUsage.cumulativeOutputTokens ??
+        tokenUsage.breakdown?.output ??
+        tokenUsage.completionTokens ??
+        0,
+    ) || 0;
+  const computedUsed = inputTokens + outputTokens;
+  const hasTokenBreakdown = computedUsed > 0;
+  const used = Math.max(reportedUsed, computedUsed);
+  const contextUsed = Number(
+    tokenUsage.contextUsed ?? tokenUsage.currentContextTokens ?? used,
+  ) || 0;
+  const contextUsedPercentage = total > 0
+    ? Number(((contextUsed / total) * 100).toFixed(2))
+    : 0;
+
+  return {
+    type: "builtin",
+    action: "cost",
+    data: {
+      tokenUsage: {
+        used,
+        total,
+        contextUsed,
+        contextUsedPercentage,
+      },
+      ...(hasTokenBreakdown
+        ? {
+            tokenBreakdown: {
+              input: inputTokens,
+              output: outputTokens,
+            },
+          }
+        : {}),
+      provider,
+      model,
+    },
+  };
+};
+
 /**
  * Recursively scan directory for command files (.md)
  * @param {string} dir - Directory to scan
@@ -251,86 +344,7 @@ Custom commands can be created in:
 
   "/models": executeModelsCommand,
 
-  "/cost": async (args, context) => {
-    const tokenUsage = context?.tokenUsage || {};
-    const provider = readModelProvider(context?.provider);
-    const catalog = (await providerModelsService.getProviderModels(provider)).models;
-    const model = await resolveCommandModel(provider, catalog, context?.sessionId);
-
-    const reportedUsed =
-      Number(
-        tokenUsage.used ?? tokenUsage.totalUsed ?? tokenUsage.total_tokens ?? 0,
-      ) || 0;
-    const total =
-      Number(
-        tokenUsage.total ??
-          tokenUsage.contextWindow ??
-          0,
-      ) || 0;
-    const normalizedInputValue =
-      tokenUsage.inputTokens ??
-      tokenUsage.input ??
-      tokenUsage.cumulativeInputTokens ??
-      tokenUsage.breakdown?.input ??
-      tokenUsage.promptTokens;
-    const directInputTokens =
-      Number(
-        normalizedInputValue ??
-          tokenUsage.input_tokens ??
-          0
-      ) || 0;
-    const cacheReadTokens =
-      Number(
-        tokenUsage.cacheReadTokens ??
-          tokenUsage.cache_read_input_tokens ??
-          tokenUsage.cacheReadInputTokens ??
-          0,
-      ) || 0;
-    const cacheCreationTokens =
-      Number(
-        tokenUsage.cacheCreationTokens ??
-          tokenUsage.cache_creation_input_tokens ??
-          tokenUsage.cacheCreationInputTokens ??
-          0,
-      ) || 0;
-    const inputTokens = normalizedInputValue == null
-      ? directInputTokens + cacheReadTokens + cacheCreationTokens
-      : directInputTokens;
-    const outputTokens =
-      Number(
-        tokenUsage.outputTokens ??
-          tokenUsage.output ??
-          tokenUsage.output_tokens ??
-          tokenUsage.cumulativeOutputTokens ??
-          tokenUsage.breakdown?.output ??
-          tokenUsage.completionTokens ??
-          0,
-      ) || 0;
-    const computedUsed = inputTokens + outputTokens;
-    const hasTokenBreakdown = computedUsed > 0;
-    const used = Math.max(reportedUsed, computedUsed);
-
-    return {
-      type: "builtin",
-      action: "cost",
-      data: {
-        tokenUsage: {
-          used,
-          total,
-        },
-        ...(hasTokenBreakdown
-          ? {
-              tokenBreakdown: {
-                input: inputTokens,
-                output: outputTokens,
-              },
-            }
-          : {}),
-        provider,
-        model,
-      },
-    };
-  },
+  "/cost": executeCostCommand,
 
   "/status": async (args, context) => {
     // Read version from package.json

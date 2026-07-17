@@ -405,6 +405,10 @@ function ModelsContent({
 function CostContent({ data }: { data: CostCommandData }) {
   const used = Number(data.tokenUsage?.used ?? 0);
   const total = Number(data.tokenUsage?.total ?? 0);
+  const contextUsed = Number(data.tokenUsage?.contextUsed ?? used);
+  const contextUsedPercentage = Number(
+    data.tokenUsage?.contextUsedPercentage ?? (total > 0 ? (contextUsed / total) * 100 : 0),
+  );
   const model = data.model || 'Unknown';
   const provider = getProviderLabel(data.provider, data.provider || 'Unknown');
   const hasBreakdown =
@@ -433,7 +437,11 @@ function CostContent({ data }: { data: CostCommandData }) {
           },
         ]),
     ...(total > 0
-      ? [{ label: 'Context window', value: formatNumber(total), icon: Gauge }]
+      ? [
+          { label: 'Current context used', value: formatNumber(contextUsed), icon: Activity },
+          { label: 'Context window', value: formatNumber(total), icon: Gauge },
+          { label: 'Context used', value: `${contextUsedPercentage.toFixed(2)}%`, icon: Gauge },
+        ]
       : []),
   ];
 

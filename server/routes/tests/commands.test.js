@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { executeModelsCommand } from '../commands.js';
+import { executeCostCommand, executeModelsCommand } from '../commands.js';
 import { providerModelsService } from '../../modules/providers/services/provider-models.service.js';
 
 test('models command returns available models only for the active provider', async () => {
@@ -75,6 +75,54 @@ test('models command falls back to claude for unsupported providers', async () =
 
     assert.equal(result.data.current.provider, 'claude');
     assert.deepEqual(Object.keys(result.data.available), ['claude']);
+  } finally {
+    providerModelsService.getProviderModels = originalGetProviderModels;
+    providerModelsService.getCurrentActiveModel = originalGetCurrentActiveModel;
+  }
+});
+
+test('cost command returns model context window and current usage percentage', async () => {
+  const originalGetProviderModels = providerModelsService.getProviderModels;
+  const originalGetCurrentActiveModel = providerModelsService.getCurrentActiveModel;
+
+  providerModelsService.getProviderModels = async () => ({
+    models: {
+      OPTIONS: [{
+        value: 'abm-xueyao/gpt-5.6-terra',
+        label: 'gpt-5.6-terra',
+        contextWindow: 1_000_000,
+      }],
+      DEFAULT: 'abm-xueyao/gpt-5.6-terra',
+    },
+    cache: {
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-04T00:00:00.000Z',
+      source: 'fresh',
+    },
+  });
+  providerModelsService.getCurrentActiveModel = async () => ({
+    model: 'abm-xueyao/gpt-5.6-terra',
+  });
+
+  try {
+    const result = await executeCostCommand([], {
+      provider: 'opencode',
+      sessionId: 'app-session-1',
+      tokenUsage: {
+        used: 413_360,
+        contextUsed: 48_529,
+        inputTokens: 410_154,
+        outputTokens: 2_992,
+      },
+    });
+
+    assert.deepEqual(result.data.tokenUsage, {
+      used: 413_360,
+      total: 1_000_000,
+      contextUsed: 48_529,
+      contextUsedPercentage: 4.85,
+    });
+    assert.equal(result.data.model, 'abm-xueyao/gpt-5.6-terra');
   } finally {
     providerModelsService.getProviderModels = originalGetProviderModels;
     providerModelsService.getCurrentActiveModel = originalGetCurrentActiveModel;

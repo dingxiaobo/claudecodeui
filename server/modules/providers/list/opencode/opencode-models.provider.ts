@@ -69,6 +69,9 @@ type OpenCodeVerboseModel = {
   id?: string;
   name?: string;
   providerID?: string;
+  limit?: {
+    context?: number;
+  };
   variants?: Record<string, unknown>;
 };
 
@@ -296,11 +299,15 @@ const mapOpenCodeVerboseModel = (model: OpenCodeVerboseModel): ProviderModelOpti
   }
 
   const effortValues = readOpenCodeEffortValues(model.variants);
+  const contextWindow = Number(model.limit?.context);
 
   return {
     value,
     label: readOptionalString(model.name) ?? labelForOpenCodeModelId(value),
     description: descriptionForOpenCodeModelId(value),
+    ...(Number.isFinite(contextWindow) && contextWindow > 0
+      ? { contextWindow }
+      : {}),
     effort: effortValues.length > 0
       ? {
           values: effortValues,

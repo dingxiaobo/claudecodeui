@@ -4,6 +4,7 @@ export type ProviderModelOption = {
   value: string;
   label: string;
   description?: string;
+  contextWindow?: number;
   effort?: {
     default?: string;
     values: {

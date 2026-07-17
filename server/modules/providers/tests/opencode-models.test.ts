@@ -96,6 +96,9 @@ anthropic/claude-sonnet-5
   "id": "claude-sonnet-5",
   "providerID": "anthropic",
   "name": "Claude Sonnet 5",
+  "limit": {
+    "context": 1000000
+  },
   "variants": {
     "low": {
       "effort": "low"
@@ -131,6 +134,7 @@ google/model-alpha
       value: 'anthropic/claude-sonnet-5',
       label: 'Claude Sonnet 5',
       description: 'anthropic - anthropic/claude-sonnet-5',
+      contextWindow: 1_000_000,
       effort: {
         values: [
           { value: 'low' },
